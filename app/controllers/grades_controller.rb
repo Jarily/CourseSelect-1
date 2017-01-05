@@ -46,7 +46,7 @@ class GradesController < ApplicationController
 
   def stastics
     @grades = []
-    @courses=current_user.courses
+    @courses= get_student_course()
     @all_semester= get_course_info(@courses, 'year', 'term_num')
     @current_semester = get_current_semester()
     semester = nil
@@ -120,10 +120,10 @@ class GradesController < ApplicationController
       end
       flash[:success] = "上传成功,共有#{worksheet.last_row_index}个学生, #{worksheet.last_row_index - error_student.length}个学生成绩已更新"
       if error_student.length !=0
-        flash[:error] = "行号为 #{error_student.join(' , ')} 的学生更新失败，请检查学号以及分数的合法性"
+        flash[:warning] = "行号为 #{error_student.join(' , ')} 的学生更新失败，请检查学号以及分数的合法性"
       end
     else
-      flash[:error] = '文件格式错误'
+      flash[:danger] = '文件格式错误'
     end
     redirect_to grades_path(course_id: course_id), flash: flash
   end

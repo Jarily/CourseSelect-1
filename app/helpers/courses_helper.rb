@@ -1,6 +1,20 @@
 require 'set'
 
 module CoursesHelper
+  def semester_to_season(semester) # '2016-1'
+    semester = semester.split('-')
+    if semester[1] == '1'
+      semester[1] = '秋季学期'
+    elsif semester[1] == '2'
+      semester[1] = '春季学期'
+    else
+      semester[1] = '夏季学期'
+    end
+    semester[0] += '-' +(semester[0].to_i + 1).to_s
+    semester.join('学年')
+  end
+
+
   def week_data_to_num(week_data)
     param = {
         '周一' => 0,
@@ -56,6 +70,14 @@ module CoursesHelper
     res.to_a.sort
   end
 
+  def get_student_course()
+    course = []
+    current_user.grades.each do |x|
+      course << x.course
+    end
+    course
+  end
+
   def get_current_semester()
     current_semester = Systeminfo.where(name: 'current_semester').take
     current_semester[:value]
@@ -79,7 +101,7 @@ module CoursesHelper
   end
 
   def get_current_semester_course()
-    logged_in? ? filter_course_by_semester(current_user.courses) : nil
+    logged_in? ? filter_course_by_semester(get_student_course()) : nil
   end
 
   def course_filter_by_condition(courses, params, keys)
@@ -106,7 +128,7 @@ module CoursesHelper
     current_semester = semester_to_array(get_current_semester())
     course = Course.where('open = true and year=? and term_num =?',
                           current_semester[0], current_semester[1])
-    logged_in? ? course-current_user.courses : course
+    logged_in? ? course- get_student_course() : course
   end
 
   def get_course_select_end_time()

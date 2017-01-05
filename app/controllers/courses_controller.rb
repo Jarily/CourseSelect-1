@@ -87,6 +87,7 @@ class CoursesController < ApplicationController
     @in_course_select_time = in_course_select_time?()
     if @in_course_select_time # 选课时间判断
       @course_to_choose=get_course_to_choose_list()
+      @current_semester = get_current_semester()
 
       @course = get_current_semester_course()
       @course_time_table = get_course_table(@course)
@@ -109,13 +110,12 @@ class CoursesController < ApplicationController
       if ids
         @course = Course.find(ids)
         if course_conflict?(get_current_semester_course(), @course)
-          flash={:error => "课程冲突"}
+          flash={:warning => "课程冲突"}
         else
           fails_course = []
           success_course = []
           @course.each do |course|
-            if course.grades.length < course.limit_num
-              current_user.courses << course #todo 并发考虑
+            if course.grades.length < course.limit_num and Grade.create(:user_id => current_user.id, :course_id => course.id)
               success_course << course.name
             else
               fails_course << course.name
@@ -137,7 +137,7 @@ class CoursesController < ApplicationController
         flash={:success => "请勾选课程"}
       end
     else
-      flash={:error => "不在选课时间！"}
+      flash={:warning => "不在选课时间！"}
     end
     redirect_to courses_path, flash: flash
   end
@@ -145,7 +145,7 @@ class CoursesController < ApplicationController
 
   def quit
     @course=Course.find_by_id(params[:id])
-    current_user.courses.delete(@course)
+    Grade.where(:user_id => current_user.id, :course_id => @course.id).take.destroy()
     flash={:success => "成功退选课程: #{@course.name}"}
     redirect_to courses_path, flash: flash
   end
@@ -180,12 +180,11 @@ class CoursesController < ApplicationController
     else
       flash={:warning => "保存失败"}
     end
-    
-     redirect_to courses_path, flash: flash
+
+    redirect_to courses_path, flash: flash
   end
-    
-    
-    
+
+
   def course_discuss
     @course = Course.find_by_id(params[:id])
     @test=""
@@ -198,8 +197,7 @@ class CoursesController < ApplicationController
 
   def my_course_list
     @course=current_user.teaching_courses if teacher_logged_in?
-    @course=current_user.courses if student_logged_in?
-    @course_time_table = get_course_table(@course)
+    @course= get_student_course() if student_logged_in?
     @all_semester= get_course_info(@course, 'year', 'term_num')
     @current_semester = get_current_semester()
     semester = nil
@@ -216,33 +214,11 @@ class CoursesController < ApplicationController
     else
       @current_semester = nil
     end
-  end
+    @course_time_table = get_course_table(@course)
 
-
-  private
-
-  # Confirms a student logged-in user.
-  def student_logged_in
-    unless student_logged_in?
-      redirect_to root_url, flash: {danger: '请登陆'}
-    end
-  end
-
-  def curriculum
-    @course=current_user.teaching_courses if teacher_logged_in?
-    @course=current_user.courses if student_logged_in?
-    render :json => @course
-  end
-
-
-  def curriculum
-    @course=current_user.teaching_courses if teacher_logged_in?
-    @course=current_user.courses if student_logged_in?
-    render :json => @course
   end
 
   private
-
   # Confirms a student logged-in user.
   def student_logged_in
     unless student_logged_in?
